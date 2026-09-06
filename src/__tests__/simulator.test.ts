@@ -154,6 +154,26 @@ describe('simulated ECM', () => {
     expect(fault?.occurrenceCount).toBe(3)
   })
 
+  it('reports only the circuit fault when a sensor has failed, not a range fault too', () => {
+    const ecm = new EcmSimulator()
+    ecm.startEngine()
+    // The failed circuit reads 128 C, which would otherwise look like an overheat.
+    ecm.faults = { ...ecm.faults, coolantSensorHigh: true }
+    for (let ms = 0; ms < 400; ms += 20) ecm.step(0.02, ms)
+    expect(ecm.activeFaults.some((f) => f.spn === 110 && f.fmi === 3)).toBe(true)
+    expect(ecm.activeFaults.some((f) => f.spn === 110 && (f.fmi === 0 || f.fmi === 16))).toBe(false)
+  })
+
+  it('still reports a genuine overheat when the sensor circuit is healthy', () => {
+    const ecm = new EcmSimulator()
+    ecm.startEngine()
+    ecm.faults = { ...ecm.faults, overheat: true }
+    ecm.inputs = { ...ecm.inputs, throttlePct: 80, loadDemand: 0.8 }
+    // Run long enough for the coolant to actually climb.
+    for (let ms = 0; ms < 400_000; ms += 200) ecm.step(0.2, ms)
+    expect(ecm.activeFaults.some((f) => f.spn === 110 && (f.fmi === 0 || f.fmi === 16))).toBe(true)
+  })
+
   it('uses a BAM when more than one fault is active', () => {
     const ecm = new EcmSimulator()
     ecm.startEngine()

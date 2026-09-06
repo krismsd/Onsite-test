@@ -72,6 +72,9 @@ export interface SessionStats {
 
 const EMPTY_LAMPS: LampStatus = { malfunction: false, red: false, amber: false, protect: false }
 
+/** How often coalesced state changes are pushed to the UI. */
+const UI_REFRESH_MS = 100
+
 export class DatalinkSession {
   private unsubscribers: Array<() => void> = []
   private reassembler = new TransportProtocolReassembler()
@@ -83,6 +86,9 @@ export class DatalinkSession {
   private frames: RawFrame[] = []
   private frameId = 0
   private listeners = new Set<() => void>()
+  private snapshotCache: SessionSnapshot | null = null
+  private dirty = false
+  private uiTimer: ReturnType<typeof setInterval> | null = null
   private rateWindow: number[] = []
   private bitsWindow: number[] = []
   private stats: SessionStats = {
@@ -113,7 +119,20 @@ export class DatalinkSession {
     return () => this.listeners.delete(listener)
   }
 
-  private notify(): void {
+  /**
+   * Mark state as changed. Bus traffic arrives far faster than a UI can
+   * usefully repaint, so updates are coalesced and flushed at a fixed rate;
+   * user-initiated changes flush immediately.
+   */
+  private notify(immediate = false): void {
+    this.dirty = true
+    if (immediate) this.flush()
+  }
+
+  private flush(): void {
+    if (!this.dirty) return
+    this.dirty = false
+    this.snapshotCache = null
     for (const listener of this.listeners) listener()
   }
 
@@ -132,12 +151,15 @@ export class DatalinkSession {
     }
     this.stats.connectedSince = Date.now()
     this.rateTimer = setInterval(() => this.tickRate(), 1000)
-    this.notify()
+    this.uiTimer = setInterval(() => this.flush(), UI_REFRESH_MS)
+    this.notify(true)
   }
 
   async stop(): Promise<void> {
     if (this.rateTimer) clearInterval(this.rateTimer)
     this.rateTimer = null
+    if (this.uiTimer) clearInterval(this.uiTimer)
+    this.uiTimer = null
     try {
       for (const command of this.codec.closeCommands()) {
         await this.transport.write(command).catch(() => undefined)
@@ -147,12 +169,14 @@ export class DatalinkSession {
       this.unsubscribers = []
       await this.transport.close()
       this.stats.connectedSince = null
-      this.notify()
+      this.notify(true)
     }
   }
 
+  /** Stable snapshot: the same object is returned until state changes. */
   snapshot(): SessionSnapshot {
-    return {
+    if (this.snapshotCache) return this.snapshotCache
+    this.snapshotCache = {
       signals: this.signals,
       dtcs: this.dtcs,
       lamps: this.lamps,
@@ -165,6 +189,7 @@ export class DatalinkSession {
         pendingCodecBytes: this.codec.pendingBytes,
       },
     }
+    return this.snapshotCache
   }
 
   // --- raw capture, for characterising an unknown adapter ------------------
@@ -438,7 +463,7 @@ export class DatalinkSession {
   async clearInactiveFaults(destination: number): Promise<void> {
     await this.transmit(PGN.DM3, destination, new Uint8Array(8).fill(0xff), 6)
     this.dtcs = this.dtcs.filter((dtc) => dtc.active || dtc.sourceAddress !== destination)
-    this.notify()
+    this.notify(true)
   }
 
   /**
@@ -447,7 +472,7 @@ export class DatalinkSession {
    */
   async clearActiveFaults(destination: number): Promise<void> {
     await this.transmit(PGN.DM11, destination, new Uint8Array(8).fill(0xff), 6)
-    this.notify()
+    this.notify(true)
   }
 
   /** Send an arbitrary frame - used by the datalink monitor's transmit box. */
@@ -464,6 +489,6 @@ export class DatalinkSession {
     this.frames = []
     this.reassembler.reset()
     this.codec.reset()
-    this.notify()
+    this.notify(true)
   }
 }

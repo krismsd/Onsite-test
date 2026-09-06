@@ -233,13 +233,23 @@ const FAULT_RULES: FaultRule[] = [
   { spn: 100, fmi: 3, lamp: 'amber', test: (_s, f) => f.oilPressureSensorHigh },
   { spn: 100, fmi: 4, lamp: 'amber', test: (_s, f) => f.oilPressureSensorLow },
   {
+    // A range fault is only raised when the circuit itself is healthy: with a
+    // failed sensor the ECM substitutes a default and reports the circuit fault
+    // alone, which is what a real controller does.
     spn: 100, fmi: 1, lamp: 'red',
-    test: (s, f) => f.lowOilPressure && s.running && s.oilPressureKpa < 105,
+    test: (s, f) =>
+      f.lowOilPressure && s.running && s.oilPressureKpa < 105 && !f.oilPressureSensorHigh && !f.oilPressureSensorLow,
   },
   { spn: 110, fmi: 3, lamp: 'amber', test: (_s, f) => f.coolantSensorHigh },
   { spn: 110, fmi: 4, lamp: 'amber', test: (_s, f) => f.coolantSensorLow },
-  { spn: 110, fmi: 0, lamp: 'red', test: (s) => s.coolantTempC > 107 },
-  { spn: 110, fmi: 16, lamp: 'amber', test: (s) => s.coolantTempC > 102 && s.coolantTempC <= 107 },
+  {
+    spn: 110, fmi: 0, lamp: 'red',
+    test: (s, f) => s.coolantTempC > 107 && !f.coolantSensorHigh && !f.coolantSensorLow,
+  },
+  {
+    spn: 110, fmi: 16, lamp: 'amber',
+    test: (s, f) => s.coolantTempC > 102 && s.coolantTempC <= 107 && !f.coolantSensorHigh && !f.coolantSensorLow,
+  },
   { spn: 111, fmi: 1, lamp: 'red', test: (_s, f) => f.lowCoolantLevel },
   { spn: 190, fmi: 0, lamp: 'red', test: (s) => s.engineSpeedRpm > 2100 },
   { spn: 190, fmi: 2, lamp: 'red', test: (_s, f) => f.camSensorLoss },

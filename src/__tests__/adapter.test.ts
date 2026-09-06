@@ -231,8 +231,28 @@ describe('capture analyser', () => {
     const random = new Uint8Array(2048)
     for (let i = 0; i < random.length; i++) random[i] = (i * 37 + 11) & 0xff
     const result = analyseCapture(random)
-    const bestScore = result.candidates[0]?.score ?? 0
-    expect(bestScore).toBeLessThan(0.6)
+    expect(result.convincing).toBe(false)
+    expect(result.notes.join(' ')).toMatch(/no convincing alignment|no j1939 identifier/i)
+  })
+
+  it('reports a real alignment as convincing', () => {
+    expect(analyseCapture(syntheticCapture(3, 16, 'big')).convincing).toBe(true)
+  })
+
+  it('recognises an ASCII adapter protocol instead of guessing byte offsets', () => {
+    const codec = new SlcanCodec()
+    let capture = new Uint8Array(0)
+    for (let i = 0; i < 40; i++) {
+      const encoded = codec.encode(EEC1_FRAME)
+      const combined = new Uint8Array(capture.length + encoded.length)
+      combined.set(capture, 0)
+      combined.set(encoded, capture.length)
+      capture = combined
+    }
+    const result = analyseCapture(capture)
+    expect(result.candidates).toHaveLength(0)
+    expect(result.notes.join(' ')).toMatch(/slcan/i)
+    expect(result.notes.join(' ')).toMatch(/40 CAN frames/)
   })
 
   it('refuses to guess from a capture that is too short', () => {

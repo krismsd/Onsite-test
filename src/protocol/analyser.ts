@@ -1,4 +1,5 @@
 import type { BinaryFramingProfile } from './framing'
+import { SlcanCodec } from './slcan'
 import { decodeCanId } from './j1939/id'
 import { decoderFor } from './j1939/decode'
 
@@ -43,6 +44,33 @@ export interface AnalysisResult {
   /** Set when frames appear to be variable-length rather than fixed stride. */
   variableLength: boolean
   notes: string[]
+  /**
+   * True when at least one candidate is supported by recognised PGNs rather
+   * than by chance alignment. A capture with no recognised PGNs will still
+   * produce candidates - random bytes always align somehow - so this is what
+   * callers should check before trusting the result.
+   */
+  convincing: boolean
+}
+
+/** A candidate backed by this fraction of recognised PGNs is worth trusting. */
+const CONVINCING_KNOWN_PGN_RATIO = 0.2
+
+/** Fraction of printable bytes above which a capture is treated as text. */
+const ASCII_THRESHOLD = 0.9
+
+function printableRatio(data: Uint8Array): number {
+  let printable = 0
+  for (const byte of data) {
+    if ((byte >= 0x20 && byte < 0x7f) || byte === 0x0d || byte === 0x0a || byte === 0x09) printable++
+  }
+  return data.length === 0 ? 0 : printable / data.length
+}
+
+/** Count frames an ASCII slcan decoder can pull out of the capture. */
+function slcanFrameCount(data: Uint8Array): number {
+  const codec = new SlcanCodec()
+  return codec.decode(data).filter((message) => message.kind === 'can').length
 }
 
 interface Hit {
@@ -185,7 +213,22 @@ export function analyseCapture(data: Uint8Array): AnalysisResult {
       candidates: [],
       variableLength: false,
       notes: ['Capture is too short to analyse. Record at least a few hundred bytes of live traffic.'],
+      convincing: false,
     }
+  }
+
+  // An ASCII line protocol will never yield a sensible binary alignment, so
+  // check for one before reporting byte offsets that cannot mean anything.
+  if (printableRatio(data) > ASCII_THRESHOLD) {
+    const frames = slcanFrameCount(data)
+    notes.push(
+      'This capture is almost entirely printable text, so the adapter is using an ASCII line protocol rather than binary framing.',
+    )
+    if (frames > 0) {
+      notes.push(`It decodes as slcan / Lawicel ASCII: ${frames} CAN frames found. Select that protocol on the Connection screen.`)
+      return { totalBytes: data.length, candidates: [], variableLength: false, notes, convincing: false }
+    }
+    notes.push('It did not decode as slcan, so it may be another text protocol or adapter status output.')
   }
 
   for (const endian of ['big', 'little'] as const) {
@@ -231,22 +274,29 @@ export function analyseCapture(data: Uint8Array): AnalysisResult {
   // frame length also lines up with the identifier.
   candidates.sort((a, b) => b.score - a.score || (a.stride ?? 0) - (b.stride ?? 0))
 
-  if (candidates.length === 0) {
+  const best = candidates[0]
+  const convincing = best !== undefined && best.knownPgnRatio >= CONVINCING_KNOWN_PGN_RATIO
+
+  if (!best) {
     notes.push(
       'No J1939 identifier alignment was found. The adapter may compress or encrypt its framing, may not be forwarding bus traffic yet, or may need an initialisation command before it starts streaming.',
     )
-  } else {
-    const best = candidates[0]
+  } else if (convincing) {
     notes.push(
       `Best alignment: identifier at offset +${best.canIdOffset} (${best.endian}-endian), ${best.stride ?? 'variable'}-byte frames, ${best.hits} frames matched, ${(best.knownPgnRatio * 100).toFixed(0)}% of PGNs recognised.`,
     )
-    if (best.sourceAddresses.length > 0) {
-      notes.push(`Source addresses seen: ${best.sourceAddresses.map((a) => `0x${a.toString(16).padStart(2, '0')}`).join(', ')}.`)
-    }
+    notes.push(`Source addresses seen: ${best.sourceAddresses.map((a) => `0x${a.toString(16).padStart(2, '0')}`).join(', ')}.`)
+  } else {
+    notes.push(
+      `No convincing alignment. The best candidate (identifier at +${best.canIdOffset}, ${best.endian}-endian) recognised ${(best.knownPgnRatio * 100).toFixed(0)}% of its PGNs, which is the level random bytes reach by chance. Treat the candidates below as guesses, not findings.`,
+    )
+    notes.push(
+      'Most likely the adapter is not forwarding bus traffic yet, needs an initialisation command, or wraps frames in a form this analyser cannot see through.',
+    )
   }
   if (variableLength) {
     notes.push('Frame spacing is inconsistent, so the adapter probably uses a length field. Try the length-prefixed profile and adjust the length field offset.')
   }
 
-  return { totalBytes: data.length, candidates: candidates.slice(0, 8), variableLength, notes }
+  return { totalBytes: data.length, candidates: candidates.slice(0, 8), variableLength, notes, convincing }
 }
