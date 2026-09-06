@@ -15,6 +15,7 @@ export function ConnectionScreen() {
   const webUsb = isWebUsbAvailable()
   const webSerial = isWebSerialAvailable()
   const secure = typeof window !== 'undefined' && window.isSecureContext
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
 
   useEffect(() => {
     void appStore.refreshKnownDevices()
@@ -29,11 +30,25 @@ export function ConnectionScreen() {
       </p>
 
       {!secure ? (
-        <Note kind="error" title="Insecure context">
+        <Note kind="error" title="Insecure context — hardware cannot be reached">
           <p>
-            WebUSB and Web Serial are only available on <code>https://</code> origins or on{' '}
-            <code>localhost</code>. Serve this application over HTTPS to connect to hardware.
+            This page is served from <code className="mono">{origin}</code>, which the browser does
+            not treat as secure. WebUSB and Web Serial are only available on <code>https://</code>
+            {' '}origins or on <code>localhost</code>, so no adapter can be opened from here. The
+            bench simulator still works.
           </p>
+          <p>Any of these fixes it:</p>
+          <ul>
+            <li>
+              Run the tool on this machine and open <code className="mono">http://localhost:5173</code>.
+            </li>
+            <li>Serve it over HTTPS (GitHub Pages, Netlify, Cloudflare Pages).</li>
+            <li>
+              For a one-off, start Chrome with{' '}
+              <code className="mono">--unsafely-treat-insecure-origin-as-secure={origin}</code> and{' '}
+              <code className="mono">--user-data-dir=/tmp/chrome-usb</code>.
+            </li>
+          </ul>
         </Note>
       ) : null}
 

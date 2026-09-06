@@ -64,6 +64,85 @@ exactly the same decode path as a real adapter.
 
 ---
 
+## Hosting it
+
+**The browser has to run on the laptop the adapter is plugged into.** WebUSB
+reaches the USB device from the browser process, so there is no arrangement in
+which the page runs on one machine and the adapter is on another. Hosting only
+saves you installing Node on that laptop.
+
+**The page must come from a secure context** — `https://` or `localhost`.
+Serving the build over plain HTTP on the local network (`http://192.168.1.5:5173`)
+loads the page fine but leaves WebUSB unavailable, which looks like the adapter
+being broken. The connection screen detects this and says so.
+
+### Option 1 — GitHub Pages (recommended)
+
+The repository is public, so Pages is free, and `.github/workflows/deploy.yml`
+already builds and publishes on every push.
+
+One-time setup: **Settings → Pages → Build and deployment → Source: GitHub
+Actions**. After the next push the tool is live at
+
+```
+https://krismsd.github.io/Onsite-test/
+```
+
+Open that on the laptop with the INLINE attached. Nothing to install there
+beyond Chrome or Edge.
+
+The build uses relative asset paths, so it works from the project subpath
+without configuration.
+
+### Option 2 — no hosting at all
+
+If the laptop has Node, skip hosting entirely:
+
+```bash
+git clone https://github.com/krismsd/Onsite-test.git
+cd Onsite-test && npm install && npm run dev
+```
+
+Then open `http://localhost:5173`. `localhost` counts as a secure context, so
+WebUSB works with no TLS setup whatsoever. This is the fastest route if you are
+iterating on the framing profile, since you can edit and reload immediately.
+
+### Option 3 — drag and drop
+
+Run `npm run build` and drag the `dist/` folder onto
+[Netlify Drop](https://app.netlify.com/drop) or Cloudflare Pages. You get an
+HTTPS URL in a few seconds with no repository access and no build configuration.
+Useful if you want a throwaway URL, or if the repo becomes private later.
+
+### Which to pick
+
+| You want | Use |
+| --- | --- |
+| A stable URL, no install on the laptop | GitHub Pages |
+| To edit the framing profile and reload fast | Run locally |
+| A throwaway URL right now | Netlify Drop |
+| To serve from another machine on the LAN | Not possible over HTTP — see below |
+
+### If you must serve over LAN HTTP
+
+Chrome can be told to trust one insecure origin. On the laptop with the adapter:
+
+```bash
+chrome --unsafely-treat-insecure-origin-as-secure=http://192.168.1.5:5173 \
+       --user-data-dir=/tmp/chrome-usb
+```
+
+The separate profile directory is required — the flag is ignored without it.
+This is a debugging aid, not something to rely on.
+
+### A note on device permissions
+
+WebUSB grants are remembered per origin. A stable HTTPS URL means you authorise
+the adapter once; a dev server on a shifting port means re-authorising each
+time. Another reason to prefer Pages once the framing is worked out.
+
+---
+
 ## Connecting real hardware
 
 ### If your adapter speaks slcan or gs_usb
