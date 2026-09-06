@@ -189,7 +189,7 @@ showing bare hex; the connection flow never filters on them.
 
 | Vendor | Product | Device |
 | --- | --- | --- |
-| `0x0AFE` | `0x0004` | Cummins INLINE adapter (reports to Windows as "Inline 6") |
+| `0x0AFE` | `0x0004` | Cummins INLINE 6 adapter (confirmed on hardware) |
 | `0x0403` | various | FTDI USB-serial bridge |
 | `0x1D50` | `0x606F` | candleLight / CANable in gs_usb firmware |
 
@@ -218,7 +218,8 @@ owned by a class driver are not — use Web Serial for those.
 | Symptom | Cause |
 | --- | --- |
 | Serial port picker is empty | The adapter is not a serial device. A vendor-specific USB device never appears there — use the WebUSB option. |
-| USB picker does not list the adapter | The OS is not presenting it in a claimable form. Check Device Manager or `lsusb` for its driver, and see the **USB devices** screen. |
+| USB picker does not list the adapter | Most often **no driver is installed**: on Windows the device sits under "Other devices" with "drivers are not installed (Code 28)". Install the manufacturer's adapter drivers. A browser cannot open a device with nothing bound to it. |
+| Driver installed, still not listed | Now consider the interface being held by a vendor driver — rebind to WinUSB. |
 | "Access denied" | An OS driver holds the interface. Rebind it, or use Web Serial. |
 | "Device unavailable" | Another application (often an RP1210 driver) has the device open. |
 | Connects, but no frames | Wrong framing profile, or the adapter needs an init command. Use the capture analyser. |

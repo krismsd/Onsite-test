@@ -18,7 +18,7 @@ export const KNOWN_VENDORS: Record<number, string> = {
 
 /** Specific devices, where the model is known. */
 export const KNOWN_DEVICES: Record<string, string> = {
-  '0afe:0004': 'Cummins INLINE datalink adapter (reports as "Inline 6" to Windows)',
+  '0afe:0004': 'Cummins INLINE 6 datalink adapter',
   '1d50:606f': 'candleLight / CANable in gs_usb firmware',
   '1d50:60c4': 'CANable 2.0',
 }

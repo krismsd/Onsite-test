@@ -277,10 +277,20 @@ export function UsbDevicesScreen() {
       <Note title="An empty device picker is itself a clue">
         <p>
           The picker lists every USB device with no vendor filter, so if the adapter is not there,
-          the operating system is not presenting it in a form the browser can offer. On Windows check
-          Device Manager for the device and its driver; if a vendor driver such as Cummins’ RP1210
-          owns it, rebind the interface to WinUSB. On Linux check <code className="mono">lsusb</code>{' '}
-          and whether a kernel driver has claimed it.
+          the operating system is not presenting it in a form the browser can offer.
+        </p>
+        <p>
+          <strong>Check for a missing driver first.</strong> On Windows, an adapter sitting under
+          “Other devices” with a yellow warning and{' '}
+          <em>“The drivers for this device are not installed. (Code 28)”</em> has no driver bound at
+          all, and a browser cannot open it. Installing the manufacturer’s adapter drivers is what
+          makes it appear — this is a far more common cause than a driver holding the device open.
+          On Linux, check <code className="mono">lsusb</code> and whether a kernel driver has claimed
+          the interface.
+        </p>
+        <p>
+          Only if a driver <em>is</em> installed and the device still does not appear does rebinding
+          the interface to WinUSB come into it.
         </p>
         <p>
           Serial ports are listed separately by the browser, and only devices that enumerate as a
