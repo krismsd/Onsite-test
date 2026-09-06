@@ -79,12 +79,18 @@ being broken. The connection screen detects this and says so.
 ### Option 1 — GitHub Pages (recommended)
 
 The repository is public, so Pages is free, and `.github/workflows/deploy.yml`
-already builds and publishes on every push. The workflow enables Pages itself
-on its first run, so there is nothing to configure by hand. (If an organisation
-policy blocks that, set **Settings → Pages → Build and deployment → Source:
-GitHub Actions** manually and re-run the workflow.)
+already builds and publishes on every push.
 
-Once the workflow has run, the tool is live at
+**One manual step, once:** **Settings → Pages → Build and deployment → Source:
+"GitHub Actions"**, then re-run the workflow.
+
+This cannot be automated. Creating a Pages site needs admin rights, and the
+token GitHub hands a workflow does not have them — `configure-pages` with
+`enablement: true` fails with `Resource not accessible by integration`. The
+workflow checks for this up front and tells you exactly what to do rather than
+failing cryptically.
+
+Once enabled, the tool is live at
 
 ```
 https://krismsd.github.io/Onsite-test/

@@ -5,9 +5,13 @@
 # secure context. A plain http:// URL on the local network will load the page
 # but leave WebUSB unavailable.
 #
-# The configure-pages step enables Pages automatically on first run, so there
-# is no manual settings step. If your organisation policy blocks that, set it
-# by hand: Settings > Pages > Build and deployment > Source: "GitHub Actions".
+# One-time setup, needed once per repository:
+#   Settings > Pages > Build and deployment > Source: "GitHub Actions"
+#
+# The workflow cannot do this for you. Creating a Pages site requires admin
+# rights, which the automatically provided workflow token does not have, so
+# configure-pages with enablement:true fails with "Resource not accessible by
+# integration". The preflight step below checks for it and says so plainly.
 name: Deploy to GitHub Pages
 
 on:
@@ -49,11 +53,31 @@ jobs:
       - name: Build
         run: npm run build
 
-      # enablement turns Pages on via the API when it has never been enabled,
-      # so no manual repository-settings step is needed.
+      # Turn the opaque "Not Found" from configure-pages into an instruction.
+      - name: Check that Pages is enabled
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh api "repos/${{ github.repository }}/pages" >/dev/null 2>&1; then
+            echo "GitHub Pages is enabled."
+            exit 0
+          fi
+          {
+            echo "## GitHub Pages is not enabled for this repository"
+            echo
+            echo "Enable it once, by hand:"
+            echo
+            echo "**Settings → Pages → Build and deployment → Source: \"GitHub Actions\"**"
+            echo
+            echo "Then re-run this workflow. The build itself succeeded — only publishing is blocked."
+            echo
+            echo "This cannot be automated: creating a Pages site needs admin rights, which the"
+            echo "workflow token does not have."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error title=GitHub Pages not enabled::Settings > Pages > Build and deployment > Source: GitHub Actions, then re-run this workflow."
+          exit 1
+
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
