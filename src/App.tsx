@@ -10,6 +10,7 @@ import { MonitorScreen } from './screens/MonitorScreen'
 import { TripInformationScreen } from './screens/TripInformationScreen'
 import { DatalinkScreen } from './screens/DatalinkScreen'
 import { AnalyserScreen } from './screens/AnalyserScreen'
+import { UsbDevicesScreen } from './screens/UsbDevicesScreen'
 import { SimulatorScreen } from './screens/SimulatorScreen'
 import { AuditScreen } from './screens/AuditScreen'
 
@@ -29,6 +30,7 @@ const NAV: NavEntry[] = [
   { id: 'trip-information', label: 'Trip information', group: 'Diagnostics', requiresSession: true },
   { id: 'datalink', label: 'Datalink monitor', group: 'Datalink', requiresSession: true },
   { id: 'analyser', label: 'Capture analyser', group: 'Datalink' },
+  { id: 'usb-devices', label: 'USB devices', group: 'Datalink' },
   { id: 'simulator', label: 'Bench simulator', group: 'Tools' },
   { id: 'audit', label: 'Audit trail', group: 'Tools' },
 ]
@@ -191,6 +193,7 @@ function Screen({ id }: { id: ScreenId }) {
     case 'trip-information': return <TripInformationScreen />
     case 'datalink': return <DatalinkScreen />
     case 'analyser': return <AnalyserScreen />
+    case 'usb-devices': return <UsbDevicesScreen />
     case 'simulator': return <SimulatorScreen />
     case 'audit': return <AuditScreen />
   }

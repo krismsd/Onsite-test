@@ -31,6 +31,7 @@ export type ScreenId =
   | 'trip-information'
   | 'datalink'
   | 'analyser'
+  | 'usb-devices'
   | 'simulator'
   | 'audit'
 

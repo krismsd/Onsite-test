@@ -205,6 +205,8 @@ owned by a class driver are not — use Web Serial for those.
 
 | Symptom | Cause |
 | --- | --- |
+| Serial port picker is empty | The adapter is not a serial device. A vendor-specific USB device never appears there — use the WebUSB option. |
+| USB picker does not list the adapter | The OS is not presenting it in a claimable form. Check Device Manager or `lsusb` for its driver, and see the **USB devices** screen. |
 | "Access denied" | An OS driver holds the interface. Rebind it, or use Web Serial. |
 | "Device unavailable" | Another application (often an RP1210 driver) has the device open. |
 | Connects, but no frames | Wrong framing profile, or the adapter needs an init command. Use the capture analyser. |
@@ -229,6 +231,9 @@ owned by a class driver are not — use Web Serial for those.
 - **Datalink monitor** — every frame crossing the adapter with its decode, bus
   load, and a transmit box for hand-built frames.
 - **Capture analyser** — as described above.
+- **USB devices** — descriptor tree for every authorised device: interfaces,
+  their class codes and endpoints, plus which interface the tool would claim.
+  The screen to reach for when an adapter will not connect at all.
 - **Bench simulator** — drive the simulated engine and inject failures.
 - **Audit trail** — every action taken this session, exportable.
 

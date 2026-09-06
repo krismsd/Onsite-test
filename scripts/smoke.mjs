@@ -102,6 +102,11 @@ try {
   await screenshot('analyser')
 
   await open('Trip information')
+
+  await open('USB devices')
+  const usbScreen = await page.locator('.content').innerText()
+  check('USB inspector renders', usbScreen.includes('Grant access to a USB device'))
+
   await open('Audit trail')
   const audit = await page.locator('.panel', { hasText: 'Events' }).innerText()
   check('records the connection in the audit trail', audit.includes('Connected'))
