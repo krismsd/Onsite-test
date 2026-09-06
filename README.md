@@ -79,10 +79,12 @@ being broken. The connection screen detects this and says so.
 ### Option 1 — GitHub Pages (recommended)
 
 The repository is public, so Pages is free, and `.github/workflows/deploy.yml`
-already builds and publishes on every push.
+already builds and publishes on every push. The workflow enables Pages itself
+on its first run, so there is nothing to configure by hand. (If an organisation
+policy blocks that, set **Settings → Pages → Build and deployment → Source:
+GitHub Actions** manually and re-run the workflow.)
 
-One-time setup: **Settings → Pages → Build and deployment → Source: GitHub
-Actions**. After the next push the tool is live at
+Once the workflow has run, the tool is live at
 
 ```
 https://krismsd.github.io/Onsite-test/

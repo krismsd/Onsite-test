@@ -5,8 +5,9 @@
 # secure context. A plain http:// URL on the local network will load the page
 # but leave WebUSB unavailable.
 #
-# One-time setup: repository Settings > Pages > Build and deployment >
-# Source: "GitHub Actions".
+# The configure-pages step enables Pages automatically on first run, so there
+# is no manual settings step. If your organisation policy blocks that, set it
+# by hand: Settings > Pages > Build and deployment > Source: "GitHub Actions".
 name: Deploy to GitHub Pages
 
 on:
@@ -48,7 +49,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      # enablement turns Pages on via the API when it has never been enabled,
+      # so no manual repository-settings step is needed.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
