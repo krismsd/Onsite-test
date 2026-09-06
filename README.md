@@ -181,6 +181,18 @@ application starts decoding.
 If the capture comes back empty, the adapter needs an initialisation command
 before it streams anything — the one case this approach cannot solve on its own.
 
+### Known adapter identifiers
+
+Adapter vendors do not publish their USB identifiers. `src/transport/usb-vendors.ts`
+records the ones seen in the field so the inspector can name a device instead of
+showing bare hex; the connection flow never filters on them.
+
+| Vendor | Product | Device |
+| --- | --- | --- |
+| `0x0AFE` | `0x0004` | Cummins INLINE adapter (reports to Windows as "Inline 6") |
+| `0x0403` | various | FTDI USB-serial bridge |
+| `0x1D50` | `0x606F` | candleLight / CANable in gs_usb firmware |
+
 ### Operating system setup
 
 **Windows.** WebUSB can only claim an interface bound to WinUSB. If the vendor's

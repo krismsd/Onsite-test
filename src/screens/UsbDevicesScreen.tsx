@@ -10,6 +10,7 @@ import {
 } from '../transport/webusb'
 import { isWebSerialAvailable, getAuthorisedPorts, requestSerialPort } from '../transport/webserial'
 import { isFtdiDevice } from '../transport/ftdi'
+import { vendorName, deviceName } from '../transport/usb-vendors'
 
 /**
  * USB device inspector.
@@ -310,15 +311,28 @@ function DevicePanel({ row }: { row: DeviceRow }) {
       iface.alternates.every((alternate) => PROTECTED_CLASSES.has(alternate.interfaceClass)),
     )
 
+  const recognised = deviceName(row.vendorId, row.productId)
+  const vendor = vendorName(row.vendorId)
+
   return (
     <Panel
-      title={row.product ?? row.label}
+      title={row.product ?? recognised ?? row.label}
       hint={`0x${hex4(row.vendorId)}:0x${hex4(row.productId)}`}
     >
       <table className="grid" style={{ marginBottom: 8 }}>
         <tbody>
+          {recognised ? (
+            <tr>
+              <th style={{ width: 170 }}>Recognised as</th>
+              <td>{recognised}</td>
+            </tr>
+          ) : null}
           <tr>
-            <th style={{ width: 170 }}>Manufacturer</th>
+            <th style={{ width: 170 }}>Vendor</th>
+            <td>{vendor ?? <span className="dim">unrecognised vendor ID</span>}</td>
+          </tr>
+          <tr>
+            <th>Manufacturer</th>
             <td>{row.manufacturer ?? <span className="dim">(none reported)</span>}</td>
           </tr>
           <tr>
