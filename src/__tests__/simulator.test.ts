@@ -299,3 +299,52 @@ describe('end to end: simulator through the full decode path', () => {
     await session.stop()
   })
 })
+
+describe('raw endpoint access', () => {
+  const settle = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+  it('records inbound and outbound bytes unframed', async () => {
+    const transport = new SimulatorTransport(() => new SlcanCodec(), { tickMs: 10 })
+    const session = new DatalinkSession(transport, new SlcanCodec(), DEFAULT_SESSION_OPTIONS)
+    await session.start()
+    await settle(150)
+
+    await session.writeRaw(new Uint8Array([0x56, 0x0d]))
+    const { rawLog } = session.snapshot()
+
+    const sent = rawLog.filter((chunk) => chunk.direction === 'tx')
+    const received = rawLog.filter((chunk) => chunk.direction === 'rx')
+    expect(received.length).toBeGreaterThan(0)
+    expect(sent.some((chunk) => Array.from(chunk.bytes).join() === '86,13')).toBe(true)
+
+    await session.stop()
+  })
+
+  it('refuses raw writes in listen-only mode', async () => {
+    const transport = new SimulatorTransport(() => new SlcanCodec(), { tickMs: 20 })
+    const session = new DatalinkSession(transport, new SlcanCodec(), {
+      ...DEFAULT_SESSION_OPTIONS,
+      listenOnly: true,
+    })
+    await session.start()
+    await expect(session.writeRaw(new Uint8Array([0x00]))).rejects.toThrow(/listen-only/i)
+    await session.stop()
+  })
+
+  it('rejects an empty write rather than sending nothing', async () => {
+    const transport = new SimulatorTransport(() => new SlcanCodec(), { tickMs: 20 })
+    const session = new DatalinkSession(transport, new SlcanCodec(), DEFAULT_SESSION_OPTIONS)
+    await session.start()
+    await expect(session.writeRaw(new Uint8Array(0))).rejects.toThrow(/nothing to send/i)
+    await session.stop()
+  })
+
+  it('bounds the raw log so a long session cannot grow without limit', async () => {
+    const transport = new SimulatorTransport(() => new SlcanCodec(), { tickMs: 5, timeScale: 5 })
+    const session = new DatalinkSession(transport, new SlcanCodec(), DEFAULT_SESSION_OPTIONS)
+    await session.start()
+    await settle(600)
+    expect(session.snapshot().rawLog.length).toBeLessThanOrEqual(500)
+    await session.stop()
+  })
+})

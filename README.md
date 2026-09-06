@@ -190,6 +190,11 @@ showing bare hex; the connection flow never filters on them.
 | Vendor | Product | Device |
 | --- | --- | --- |
 | `0x0AFE` | `0x0004` | Cummins INLINE 6 adapter (confirmed on hardware) |
+
+The INLINE 6 at `0AFE:0004` reports USB 1.1, device class vendor-specific
+(`0xFF`), and a single interface 0 alternate 0 (class/subclass/protocol all
+`0xFF`) carrying **EP 1 OUT bulk** and **EP 2 IN bulk**, 64-byte packets. That
+is a claimable layout, and endpoint auto-detection selects it correctly.
 | `0x0403` | various | FTDI USB-serial bridge |
 | `0x1D50` | `0x606F` | candleLight / CANable in gs_usb firmware |
 
@@ -247,6 +252,10 @@ owned by a class driver are not — use Web Serial for those.
 - **USB devices** — descriptor tree for every authorised device: interfaces,
   their class codes and endpoints, plus which interface the tool would claim.
   The screen to reach for when an adapter will not connect at all.
+- **Adapter console** — raw bytes in and out of the adapter's endpoints with no
+  framing applied, plus a set of candidate probe commands. This is the tool for
+  an adapter that connects but stays silent: send something and see what
+  answers.
 - **Bench simulator** — drive the simulated engine and inject failures.
 - **Audit trail** — every action taken this session, exportable.
 

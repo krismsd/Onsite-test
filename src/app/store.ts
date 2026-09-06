@@ -32,6 +32,7 @@ export type ScreenId =
   | 'datalink'
   | 'analyser'
   | 'usb-devices'
+  | 'console'
   | 'simulator'
   | 'audit'
 

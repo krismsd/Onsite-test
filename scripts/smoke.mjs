@@ -103,6 +103,13 @@ try {
 
   await open('Trip information')
 
+  await open('Adapter console')
+  const consoleText = await page.locator('.content').innerText()
+  // Tags are uppercased by CSS, and innerText reflects that.
+  check('adapter console shows endpoint traffic', /bytes received/i.test(consoleText))
+  const rawRows = await page.locator('.panel', { hasText: 'Endpoint traffic' }).locator('tbody tr').count()
+  check('adapter console logs raw chunks', rawRows > 0)
+
   await open('USB devices')
   const usbScreen = await page.locator('.content').innerText()
   check('USB inspector renders', usbScreen.includes('Grant access to a USB device'))

@@ -15,6 +15,7 @@ const EMPTY_SNAPSHOT: SessionSnapshot = {
   nodes: [],
   identification: new Map(),
   frames: [],
+  rawLog: [],
   stats: {
     framesReceived: 0,
     framesTransmitted: 0,

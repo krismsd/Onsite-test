@@ -45,6 +45,14 @@ export const DEFAULT_SESSION_OPTIONS: SessionOptions = {
   frameBufferSize: 5000,
 }
 
+/** One chunk of bytes exactly as it crossed the USB endpoint. */
+export interface RawChunk {
+  id: number
+  direction: 'rx' | 'tx'
+  at: number
+  bytes: Uint8Array
+}
+
 export interface SessionSnapshot {
   signals: SignalFrame
   dtcs: DiagnosticTroubleCode[]
@@ -52,6 +60,8 @@ export interface SessionSnapshot {
   nodes: BusNode[]
   identification: Map<number, EcmIdentification>
   frames: RawFrame[]
+  /** Unframed endpoint traffic, for characterising an unknown adapter. */
+  rawLog: RawChunk[]
   stats: SessionStats
 }
 
@@ -75,6 +85,9 @@ const EMPTY_LAMPS: LampStatus = { malfunction: false, red: false, amber: false, 
 /** How often coalesced state changes are pushed to the UI. */
 const UI_REFRESH_MS = 100
 
+/** Chunks of unframed traffic retained for the adapter console. */
+const RAW_LOG_LIMIT = 500
+
 export class DatalinkSession {
   private unsubscribers: Array<() => void> = []
   private reassembler = new TransportProtocolReassembler()
@@ -84,6 +97,8 @@ export class DatalinkSession {
   private nodes = new Map<number, BusNode>()
   private identification = new Map<number, EcmIdentification>()
   private frames: RawFrame[] = []
+  private rawLog: RawChunk[] = []
+  private rawId = 0
   private frameId = 0
   private listeners = new Set<() => void>()
   private snapshotCache: SessionSnapshot | null = null
@@ -183,6 +198,7 @@ export class DatalinkSession {
       nodes: [...this.nodes.values()].sort((a, b) => a.address - b.address),
       identification: this.identification,
       frames: this.frames,
+      rawLog: this.rawLog,
       stats: {
         ...this.stats,
         pendingTpSessions: this.reassembler.pendingSessions,
@@ -216,6 +232,7 @@ export class DatalinkSession {
 
   private handleBytes(data: Uint8Array): void {
     this.stats.bytesReceived += data.length
+    this.recordRaw('rx', data)
     if (this.capturing) {
       // Cap the capture so a long session cannot exhaust memory.
       if (this.captureBuffer.length < 512 * 1024) {
@@ -402,6 +419,36 @@ export class DatalinkSession {
     this.notify()
   }
 
+  /** Keep a bounded window of unframed traffic for the adapter console. */
+  private recordRaw(direction: 'rx' | 'tx', bytes: Uint8Array): void {
+    this.rawLog = [
+      ...this.rawLog.slice(-(RAW_LOG_LIMIT - 1)),
+      { id: this.rawId++, direction, at: performance.now(), bytes: bytes.slice() },
+    ]
+  }
+
+  clearRawLog(): void {
+    this.rawLog = []
+    this.notify(true)
+  }
+
+  /**
+   * Write bytes straight to the adapter, bypassing the framing codec.
+   *
+   * This is how an undocumented adapter gets characterised: send a candidate
+   * initialisation command and watch what, if anything, comes back. Blocked in
+   * listen-only mode, since arbitrary bytes could reach the vehicle bus.
+   */
+  async writeRaw(bytes: Uint8Array): Promise<void> {
+    if (this.options.listenOnly) {
+      throw new Error('The session is in listen-only mode; enable transmit to send raw bytes.')
+    }
+    if (bytes.length === 0) throw new Error('Nothing to send.')
+    await this.transport.write(bytes)
+    this.recordRaw('tx', bytes)
+    this.notify(true)
+  }
+
   // --- outbound -----------------------------------------------------------
 
   private async transmit(pgn: number, destination: number, data: Uint8Array, priority = 6): Promise<void> {
@@ -415,7 +462,9 @@ export class DatalinkSession {
       destinationAddress: destination,
     })
     const frame: CanFrame = { canId, extended: true, data }
-    await this.transport.write(this.codec.encode(frame))
+    const encoded = this.codec.encode(frame)
+    await this.transport.write(encoded)
+    this.recordRaw('tx', encoded)
     this.stats.framesTransmitted++
     this.pushFrame({
       id: this.frameId++,
@@ -487,6 +536,7 @@ export class DatalinkSession {
     this.dtcs = []
     this.lamps = { ...EMPTY_LAMPS }
     this.frames = []
+    this.rawLog = []
     this.reassembler.reset()
     this.codec.reset()
     this.notify(true)
